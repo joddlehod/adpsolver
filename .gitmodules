@@ -1,0 +1,3 @@
+[submodule "dnad"]
+	path = dnad
+	url = https://github.com/joddlehod/dnad

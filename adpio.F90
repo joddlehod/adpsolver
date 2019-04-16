@@ -1,8 +1,17 @@
 module adpio
+#ifdef dnad
+    use dnadmod
+#define real type(dual)
+#endif
     use adpsolver
     implicit none
     
     integer, parameter :: ioUnit = 10  ! IO unit for files
+#ifdef dnad
+    integer, parameter :: maxdvs = 3  ! Maximum number of derivatives supported
+    integer :: dvcount = 0  ! Count of partial derivatives requested
+    character*80, dimension(maxdvs) :: dvnames = ""  ! List of derivative names
+#endif
 
 contains
     !!! Read and parse the input file
@@ -147,6 +156,10 @@ contains
                     err = setGridField(model, paramName, paramValue)
                 case ("*solver")
                     err = setSolverField(model, paramName, paramValue)
+#ifdef dnad
+                case ("*dnad")
+                    err = setDNADField(model, paramName, paramValue)
+#endif
                 case default
                     write(*, '(2X, A, A, A)') "Unrecognized card ID: ", &
                         &   trim(id), ". Card skipped!"
@@ -339,6 +352,65 @@ contains
     end function setSolverField
 
 
+#ifdef dnad
+    !!! Set a field from the dnad card
+    !!!
+    !!! Input:
+    !!!     model = adpmodel object
+    !!!     paramName = Name of field to set
+    !!!     paramValue = String representation of parameter value
+    !!!
+    !!! Return:
+    !!!     stat = Error status flag (0 = success,
+    !!!                               1 = Unrecognized parameter name,
+    !!!                               2 = Number of allowed dvs exceeded)
+    integer function setDNADField(model, paramName, paramValue) result(stat)
+        class(adpmodel), intent(inout) :: model
+        character(len=*), intent(in) :: paramName  ! Parameter name
+        character(len=*), intent(in) :: paramValue  ! Parameter value
+
+        ! Initialize the error flag
+        stat = 0
+
+        select case(paramName)
+            case ("dv")
+                ! Check number of design variables
+                if (dvcount .ge. ndv) then
+                    write(*, '(6X, A, I0, A, /, 6X, A, A)') &
+                        &   "The maximum number of design variables (", &
+                        &   ndv, ") has been reached.", paramValue, &
+                        &   " will not be included as a design variable."
+                else
+                    select case(paramValue)
+                        case ("u")
+                            dvcount = dvcount + 1
+                            model%u%dx(dvcount) = 1.0
+                            dvnames(dvcount) = "dPhi/dU"
+                        case ("gamma")
+                            dvcount = dvcount + 1
+                            model%gamma%dx(dvcount) = 1.0
+                            dvnames(dvcount) = "dPhi/dGamma"
+                        case ("c")
+                            dvcount = dvcount + 1
+                            model%c%dx(dvcount) = 1.0
+                            dvnames(dvcount) = "dPhi/dC"
+                        case default
+                            write(*, '(6X, A, 1X, A)') &
+                                &   "Unrecognized design variable:", &
+                                &   paramValue
+                    end select
+                end if
+            case default
+                write(*, '(6X, A, 1X, A)') &
+                    &   "Unrecognized parameter name on dnad card:", &
+                    &    trim(paramName)
+                stat = 1
+            end select
+
+    end function setDNADField
+#endif
+
+
     REAL function stringToReal(str) result (val)
         character*80, intent(in) :: str  ! String to convert
         
@@ -405,6 +477,7 @@ contains
     end function writeOutput
     
 
+#ifndef dnad
     subroutine writeData(model)
         class(adpmodel), intent(inout) :: model  ! adpmodel object
         
@@ -433,6 +506,41 @@ contains
             end do
         end if
     end subroutine writeData
+#else
+    subroutine writeData(model)
+        class(adpmodel), intent(inout) :: model  ! adpmodel object
+
+        integer :: i, j  ! Loop control variable
+        character*80 :: fmtString
+
+        if (model%method .eq. analytical .and. model%computeDerivatives) then
+            ! Header
+            write(fmtString, *) '(', 4 + dvcount, '(A, ","), A)'
+            write(ioUnit, fmtString) "x", "phi", "dPhi/dU", &
+                &   "dPhi/dGamma", "dPhi/dC", (trim(dvnames(j))//"_AD", j=1, dvcount)
+
+            ! Results
+            write(fmtString, *) '(', 4 + dvcount, '(ES23.15, ", "), ES23.15)'
+            do i=1, model%npts
+                write(ioUnit, fmtString) model%x(i)%x, model%phi(i)%x, &
+                    &   model%dPhi_dU(i)%x, model%dPhi_dGamma(i)%x, &
+                    &   model%dPhi_dC(i)%x, (model%phi(i)%dx(j), j=1, dvcount)
+            end do
+        else
+            ! Header
+            write(fmtString, *) '(', 1 + dvcount, '(A, ","), A)'
+            write(ioUnit, fmtString) "x", "phi", &
+                &   (trim(dvnames(j))//"_AD", j=1, dvcount)
+
+            ! Results
+            write(fmtString, *) '(', 1 + dvcount, '(ES23.15, ", "), ES23.15)'
+            do i=1, model%npts
+                write(ioUnit, fmtString) model%x(i)%x, model%phi(i)%x, &
+                    &   (model%phi(i)%dx(j), j=1, dvcount)
+            end do
+        end if
+    end subroutine writeData
+#endif
     
     
     character*80 function removeWhitespace(str) result(mstr)

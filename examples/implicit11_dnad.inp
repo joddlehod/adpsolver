@@ -1,0 +1,6 @@
+*job, name=implicit11_dnad
+*bcs, phi0=1.0, phi1=0.0
+*props, u=1.0, gamma=0.1, c=-1.0
+*grid, npts=11
+*solver, method=implicit
+*dnad, dv=u, dv=gamma, dv=c

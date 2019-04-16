@@ -1,4 +1,8 @@
 module adpsolver
+#ifdef dnad
+    use dnadmod
+#define real type(dual)
+#endif
     implicit none
     
     !!! Solution Methods enum
