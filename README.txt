@@ -59,32 +59,15 @@ Card and Parameter Options:
                             to generate an output file name if one is not
                             specified from the command line.
 
-    Boundary Condition 1 card:
+    Boundary Conditions card:
 
-        Example:        *bc1, x=[0.0], phi=[1.0]
+        Example:        *bcs, phi0=[1.0], phi1=[0.0]
 
-        Description:    Card for specifying the first (left-hand) boundary
-                        condition.
+        Description:    Card for specifying the left (x=0) and right (x=1)
+                        boundary conditions.
 
-        Parameters:     1) x = The x-coordinate for the first (left-hand)
-                            boundary condition. The value specified here must be
-                            less than the value specified for x on the *bc2 card.
-                        2) phi = The value of the scalar quantity at the
-                            x-coordinate specified in (1)
-
-    Boundary Condition 2 card:
-
-        Example:        *bc2, x=[1.0], phi=[0.0]
-
-        Description:    Card for specifying the second (right-hand) boundary
-                        condition.
-
-        Parameters:     1) x = The x-coordinate for the second (right-hand)
-                            boundary condition. The value specified here must be
-                            greater than the value specified for x on the *bc1
-                            card.
-                        2) phi = The value of the scalar quantity at the
-                            x-coordinate specified in (1)
+        Parameters:     1) phi0 = The value of the scalar quantity at x=0
+                        2) phi1 = The value of the scalar quantity at x=1
 
     Properties card:
 
@@ -118,11 +101,22 @@ Card and Parameter Options:
         Parameters:     1) method = The solution method to use for this
                             analysis. Available options are "analytical" and
                             "implicit". If "analytical" is specified, the
-                            boundary conditions specified on the *bc1 and
-                            *bc2 cards must match one of the options below:
+                            boundary conditions specified on the *bcs card
+                            must match the settings below:
 
-                            a) *bc1, x=0.0, phi=1.0
-                               *bc2, x=[any], phi=0.0
-                
+                                *bcs, phi0=1.0, phi1=0.0
 
+    Automatic Derivatives card:
 
+        Example:        *dnad, dv=[u], dv=[gamma], dv=[c]
+
+        Description:    Card for specifying automatic derivatives to calculate
+
+        Parameters:     1) dv = The name of the independent variable for the
+                            derivatives to be calculated. Options are [u,
+                            gamma, c], and 1-3 `dv` parameters can be included.
+
+        Note:           In order to use the *dnad card, the code must be compiled
+                        using the `-Ddnad -Dndv=<#> dnad/dnad.F90` options, where
+                        `<#>` is the number of `dv` parameters specified on the
+                        card.
